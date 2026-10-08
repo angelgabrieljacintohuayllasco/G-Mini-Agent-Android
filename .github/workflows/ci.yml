@@ -29,7 +29,10 @@ jobs:
           java-version: '17'
 
       - name: Preparar el SDK de Android
-        uses: android-actions/setup-android@v3
+        run: |
+          set -e
+          yes | "${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null
+          "${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager" "platform-tools" "platforms;android-35" "build-tools;35.0.0" > /dev/null
 
       - name: Configurar Gradle
         uses: gradle/actions/setup-gradle@v4
