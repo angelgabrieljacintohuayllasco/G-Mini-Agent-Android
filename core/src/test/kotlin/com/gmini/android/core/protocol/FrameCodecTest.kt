@@ -135,6 +135,18 @@ class FrameCodecTest {
     }
 
     @Test
+    fun `tolera los frames notice y approval`() {
+        assertEquals(
+            WsServerFrame.Notice("system", "Acciones ejecutadas"),
+            FrameCodec.decode("""{"type":"notice","kind":"system","text":"Acciones ejecutadas"}"""),
+        )
+        assertEquals(
+            WsServerFrame.Approval(true, "Ejecutar un comando"),
+            FrameCodec.decode("""{"type":"approval","pending":true,"summary":"Ejecutar un comando"}"""),
+        )
+    }
+
+    @Test
     fun `un type desconocido no rompe la decodificacion`() {
         val frame = FrameCodec.decode("""{"type":"telemetry","cpu":42}""")
         assertTrue(frame is WsServerFrame.Unknown)

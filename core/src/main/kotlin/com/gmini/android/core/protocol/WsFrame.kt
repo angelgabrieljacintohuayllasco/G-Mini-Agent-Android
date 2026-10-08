@@ -77,6 +77,16 @@ public sealed interface WsServerFrame {
 
     public data class State(val status: String, val emotion: String?) : WsServerFrame
 
+    /**
+     * Aviso del sistema dentro de un turno. El contrato lo define para el
+     * streaming SSE; el cliente tambien lo tolera por el WebSocket de forma
+     * aditiva.
+     */
+    public data class Notice(val kind: String?, val text: String) : WsServerFrame
+
+    /** Acciones sensibles esperando aprobacion (tolerado de forma aditiva). */
+    public data class Approval(val pending: Boolean, val summary: String?) : WsServerFrame
+
     public data class Done(
         val id: String?,
         val reply: String?,

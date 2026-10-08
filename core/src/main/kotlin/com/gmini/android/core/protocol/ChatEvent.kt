@@ -41,6 +41,8 @@ public fun WsServerFrame.toChatEvent(): ChatEvent? = when (this) {
     is WsServerFrame.Action -> ChatEvent.ActionStarted(action, params, id)
     is WsServerFrame.ActionResult -> ChatEvent.ActionFinished(action, success, message, id)
     is WsServerFrame.State -> ChatEvent.StateChanged(status, emotion)
+    is WsServerFrame.Notice -> ChatEvent.Notice(kind, text)
+    is WsServerFrame.Approval -> ChatEvent.ApprovalRequested(pending, summary)
     is WsServerFrame.Done -> ChatEvent.Done(sessionId, reply)
     is WsServerFrame.ErrorFrame -> ChatEvent.Failed(code, message)
     is WsServerFrame.Notify -> null

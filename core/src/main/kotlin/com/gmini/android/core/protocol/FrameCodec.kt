@@ -103,6 +103,16 @@ public object FrameCodec {
                 emotion = obj.str("emotion"),
             )
 
+            "notice" -> WsServerFrame.Notice(
+                kind = obj.str("kind"),
+                text = obj.str("text").orEmpty(),
+            )
+
+            "approval" -> WsServerFrame.Approval(
+                pending = obj.bool("pending") ?: true,
+                summary = obj.str("summary"),
+            )
+
             "done" -> WsServerFrame.Done(
                 id = obj.str("id"),
                 reply = obj.str("reply"),
