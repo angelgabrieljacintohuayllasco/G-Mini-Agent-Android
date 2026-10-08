@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    El cliente se conecta por omision a servidores de la red local, que usan
+    HTTP sin cifrar (por ejemplo http://192.168.x.x:8765). Por eso se permite
+    el trafico en claro. Para un servidor remoto se recomienda un proxy con TLS
+    o una VPN como Tailscale (ver Ajustes).
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

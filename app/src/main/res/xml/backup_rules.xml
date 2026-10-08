@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- El token vive en almacenamiento cifrado y nunca se respalda. -->
+    <exclude domain="sharedpref" path="gmini_secure_prefs.xml" />
+</full-backup-content>
