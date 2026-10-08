@@ -1,0 +1,31 @@
+# Gradle
+.gradle/
+build/
+**/build/
+!gradle/wrapper/gradle-wrapper.jar
+!gradle/wrapper/gradle-wrapper.properties
+
+# Configuracion local del SDK (cada maquina tiene la suya)
+local.properties
+
+# Artefactos de compilacion
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+
+# Firmas (nunca se versionan)
+*.jks
+*.keystore
+keystore.properties
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+captures/
+.cxx/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
