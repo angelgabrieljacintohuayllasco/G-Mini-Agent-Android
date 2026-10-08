@@ -120,7 +120,7 @@ class ChatViewModel(
         viewModelScope.launch {
             _state.update { it.copy(approval = null) }
             runCatching { repository.approve(approve) }
-                .onFailure { _state.update { it.copy(error = messageFor(it)) } }
+                .onFailure { failure -> _state.update { it.copy(error = messageFor(failure)) } }
         }
     }
 
@@ -152,7 +152,7 @@ class ChatViewModel(
                         )
                     }
                 }
-                .onFailure { _state.update { it.copy(error = messageFor(it)) } }
+                .onFailure { failure -> _state.update { it.copy(error = messageFor(failure)) } }
         }
     }
 
@@ -179,9 +179,9 @@ class ChatViewModel(
                         ?.let { encoded -> runCatching { Base64.decode(encoded, Base64.DEFAULT) }.getOrNull() }
                         ?.let(onAudio)
                 }
-                .onFailure {
+                .onFailure { failure ->
                     _state.update {
-                        it.copy(sending = false, voiceState = VoiceState.IDLE, error = messageFor(it))
+                        it.copy(sending = false, voiceState = VoiceState.IDLE, error = messageFor(failure))
                     }
                 }
         }

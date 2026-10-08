@@ -20,18 +20,27 @@ class SettingsViewModel(
     val profiles: StateFlow<List<ServerProfile>> = repository.profiles
     val activeProfile: StateFlow<ServerProfile?> = repository.activeProfile
 
-    fun setTheme(mode: ThemeMode) = viewModelScope.launch { settingsRepository.setThemeMode(mode) }
+    fun setTheme(mode: ThemeMode) {
+        viewModelScope.launch { settingsRepository.setThemeMode(mode) }
+    }
 
-    fun setDisplayTextSurface(enabled: Boolean) =
+    fun setDisplayTextSurface(enabled: Boolean) {
         viewModelScope.launch { settingsRepository.setSurfaceDisplayText(enabled) }
+    }
 
-    fun setTtsSpeakSurface(enabled: Boolean) =
+    fun setTtsSpeakSurface(enabled: Boolean) {
         viewModelScope.launch { settingsRepository.setSurfaceTtsSpeak(enabled) }
+    }
 
-    fun setBackgroundConnection(enabled: Boolean) =
+    fun setBackgroundConnection(enabled: Boolean) {
         viewModelScope.launch { settingsRepository.setBackgroundConnectionEnabled(enabled) }
+    }
 
-    fun selectProfile(id: String) = repository.setActiveProfile(id)
+    fun selectProfile(id: String) {
+        repository.setActiveProfile(id)
+    }
 
-    fun unpair(profile: ServerProfile) = viewModelScope.launch { repository.unpair(profile) }
+    fun unpair(profile: ServerProfile) {
+        viewModelScope.launch { repository.unpair(profile) }
+    }
 }
