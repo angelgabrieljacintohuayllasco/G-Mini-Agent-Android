@@ -1,0 +1,70 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Construir y publicar el APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Validar el wrapper de Gradle
+        uses: gradle/actions/wrapper-validation@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Preparar el SDK de Android
+        uses: android-actions/setup-android@v3
+
+      - name: Configurar Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Comprobar que la etiqueta coincide con versionName
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          grep -q "versionName = \"${version}\"" app/build.gradle.kts || {
+            echo "La etiqueta ${GITHUB_REF_NAME} no coincide con versionName en app/build.gradle.kts." >&2
+            exit 1
+          }
+
+      - name: Dar permiso de ejecucion al wrapper
+        run: chmod +x gradlew
+
+      - name: Pruebas de :core (JVM)
+        run: ./gradlew :core:test
+
+      - name: Compilar el APK (firmado con la clave de CI/depuracion)
+        run: ./gradlew assembleRelease
+
+      - name: Preparar el artefacto y las notas
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          mkdir -p dist
+          cp app/build/outputs/apk/release/*.apk "dist/gmini-android-${GITHUB_REF_NAME}.apk"
+          awk -v v="$version" '
+            $0 ~ "^## \\[" v "\\]" { capture = 1; next }
+            capture && /^## \[/ { exit }
+            capture { print }
+          ' CHANGELOG.md > dist/RELEASE_NOTES.md
+          {
+            echo ""
+            echo "---"
+            echo "APK firmado con la clave de depuracion/CI de Android para que se pueda instalar. No es una firma de produccion."
+          } >> dist/RELEASE_NOTES.md
+
+      - name: Publicar la Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: dist/RELEASE_NOTES.md
+          files: dist/gmini-android-*.apk
+          fail_on_unmatched_files: true
