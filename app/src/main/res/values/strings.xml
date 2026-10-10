@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">G-Mini</string>
+    <string name="accessibility_label">G-Mini: control del telefono</string>
+    <string name="accessibility_description">Permite que tu agente de G-Mini maneje este telefono (tocar, deslizar, escribir y capturar la pantalla) cuando enciendes el modulo en la app, solo con un servidor de red local. Puedes apagarlo cuando quieras.</string>
 </resources>

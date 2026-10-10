@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Configuracion del servicio de accesibilidad del control del telefono.
+    No observa el contenido de la pantalla de forma pasiva: canRetrieveWindowContent
+    se usa para escribir en el campo enfocado y las capturas se piden una a una.
+    El usuario lo activa a mano en Ajustes de Android y lo puede apagar cuando quiera.
+-->
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accessibilityEventTypes="typeViewFocused"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:accessibilityFlags="flagDefault"
+    android:canPerformGestures="true"
+    android:canRetrieveWindowContent="true"
+    android:description="@string/accessibility_description"
+    android:label="@string/accessibility_label"
+    android:notificationTimeout="100" />

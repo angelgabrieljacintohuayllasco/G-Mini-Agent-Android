@@ -27,6 +27,12 @@ data class AppSettings(
      * local. Ver docs/MODULOS.md.
      */
     val smsGatewayEnabled: Boolean = false,
+    /**
+     * Control del telefono por accesibilidad (android-use). Modulo opcional,
+     * apagado por defecto. Ademas de este interruptor, el usuario debe activar el
+     * servicio de accesibilidad a mano en Ajustes de Android. Ver docs/MODULOS.md.
+     */
+    val deviceControlEnabled: Boolean = false,
 )
 
 class SettingsRepository(private val context: Context) {
@@ -40,6 +46,7 @@ class SettingsRepository(private val context: Context) {
             backgroundConnectionEnabled = prefs[KEY_BACKGROUND] ?: false,
             remoteServersAcknowledged = prefs[KEY_REMOTE_ACK] ?: false,
             smsGatewayEnabled = prefs[KEY_SMS_GATEWAY] ?: false,
+            deviceControlEnabled = prefs[KEY_DEVICE_CONTROL] ?: false,
         )
     }
 
@@ -67,6 +74,10 @@ class SettingsRepository(private val context: Context) {
         context.settingsDataStore.edit { it[KEY_SMS_GATEWAY] = enabled }
     }
 
+    suspend fun setDeviceControlEnabled(enabled: Boolean) {
+        context.settingsDataStore.edit { it[KEY_DEVICE_CONTROL] = enabled }
+    }
+
     private companion object {
         val KEY_THEME = stringPreferencesKey("theme_mode")
         val KEY_SURFACE_DISPLAY_TEXT = booleanPreferencesKey("surface_display_text")
@@ -74,5 +85,6 @@ class SettingsRepository(private val context: Context) {
         val KEY_BACKGROUND = booleanPreferencesKey("background_connection")
         val KEY_REMOTE_ACK = booleanPreferencesKey("remote_servers_ack")
         val KEY_SMS_GATEWAY = booleanPreferencesKey("sms_gateway_enabled")
+        val KEY_DEVICE_CONTROL = booleanPreferencesKey("device_control_enabled")
     }
 }

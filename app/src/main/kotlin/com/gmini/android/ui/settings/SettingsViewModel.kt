@@ -40,6 +40,10 @@ class SettingsViewModel(
         viewModelScope.launch { settingsRepository.setSmsGatewayEnabled(enabled) }
     }
 
+    fun setDeviceControl(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setDeviceControlEnabled(enabled) }
+    }
+
     fun selectProfile(id: String) {
         repository.setActiveProfile(id)
     }

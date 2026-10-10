@@ -20,9 +20,11 @@ object AgentNotifications {
     const val CHANNEL_NOTIFY = "gmini_notify"
     const val CHANNEL_DISPLAY = "gmini_display"
     const val CHANNEL_SMS = "gmini_sms"
+    const val CHANNEL_CONTROL = "gmini_control"
 
     const val FOREGROUND_ID = 1001
     const val SMS_ACTIVE_ID = 1002
+    const val CONTROL_ACTIVE_ID = 1003
 
     private val dynamicId = AtomicInteger(2000)
 
@@ -55,6 +57,13 @@ object AgentNotifications {
                 "Pasarela SMS",
                 NotificationManager.IMPORTANCE_HIGH,
             ).apply { description = "Estado de la pasarela SMS y confirmaciones para enviar mensajes." },
+        )
+        manager.createNotificationChannel(
+            NotificationChannel(
+                CHANNEL_CONTROL,
+                "Control del telefono",
+                NotificationManager.IMPORTANCE_DEFAULT,
+            ).apply { description = "Avisa cuando el agente puede manejar el telefono." },
         )
     }
 
@@ -151,6 +160,25 @@ object AgentNotifications {
             .setDeleteIntent(deny)
         post(context, builder.build(), notificationId)
     }
+
+    /** Aviso continuo, no descartable, de que el control del telefono esta activo. */
+    fun controlActiveNotification(context: Context, stop: PendingIntent): android.app.Notification =
+        NotificationCompat.Builder(context, CHANNEL_CONTROL)
+            .setSmallIcon(R.drawable.ic_stat_gmini)
+            .setContentTitle("Control del telefono activo")
+            .setContentText("El agente puede ver y manejar esta pantalla.")
+            .setStyle(
+                NotificationCompat.BigTextStyle().bigText(
+                    "El agente puede ver y manejar esta pantalla mientras esto este activo. " +
+                        "Pulsa Detener para cortarlo de inmediato.",
+                ),
+            )
+            .setOngoing(true)
+            .setShowWhen(false)
+            .setContentIntent(openAppIntent(context))
+            .addAction(0, "Detener", stop)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .build()
 
     fun nextSmsNotificationId(): Int = dynamicId.incrementAndGet()
 

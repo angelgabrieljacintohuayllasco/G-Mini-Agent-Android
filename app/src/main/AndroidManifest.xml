@@ -77,6 +77,26 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
+        <!--
+            Control del telefono (android-use): modulo OPCIONAL. El usuario activa
+            este servicio a mano en Ajustes de Android; esta protegido por
+            BIND_ACCESSIBILITY_SERVICE, que solo tiene el sistema. La app ejecuta
+            acciones solo si ademas el modulo esta encendido en Ajustes y el
+            servidor es de red local. Ver docs/MODULOS.md.
+        -->
+        <service
+            android:name=".control.GMiniAccessibilityService"
+            android:exported="true"
+            android:label="@string/accessibility_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service_config" />
+        </service>
+
     </application>
 
 </manifest>

@@ -1,7 +1,9 @@
 package com.gmini.android.ui.settings
 
 import android.Manifest
+import android.content.Intent
 import android.os.Build
+import android.provider.Settings
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -41,6 +43,7 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import com.google.accompanist.permissions.rememberPermissionState
+import com.gmini.android.control.DeviceControl
 import com.gmini.android.core.store.ServerProfile
 import com.gmini.android.data.AppSettings
 import com.gmini.android.service.AgentConnectionService
@@ -68,8 +71,14 @@ fun SettingsScreen(
 
     var unpairTarget by remember { mutableStateOf<ServerProfile?>(null) }
     var showSmsConsent by remember { mutableStateOf(false) }
+    var showControlConsent by remember { mutableStateOf(false) }
 
     val activeIsLocal = activeProfile?.isRemote == false
+    val accessibilityOn = DeviceControl.isEnabledInSettings(context)
+
+    fun openAccessibilitySettings() {
+        runCatching { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
+    }
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Ajustes") }) },
@@ -179,6 +188,44 @@ fun SettingsScreen(
                 }
             }
 
+            SectionTitle("Control del telefono (opcional)")
+            SectionCard {
+                SettingSwitch(
+                    title = "Control del telefono (android-use)",
+                    description = "Apagado por defecto. Permite que tu agente toque, deslice, escriba y " +
+                        "capture la pantalla, como el computer use del escritorio. Solo en red local y " +
+                        "con una notificacion permanente con un boton para detenerlo.",
+                    checked = settings.deviceControlEnabled,
+                    enabled = activeIsLocal || settings.deviceControlEnabled,
+                    onCheckedChange = { enabled ->
+                        if (enabled) {
+                            showControlConsent = true
+                        } else {
+                            viewModel.setDeviceControl(false)
+                            DeviceControl.disableService()
+                        }
+                    },
+                )
+                if (!activeIsLocal) {
+                    Text(
+                        "Solo disponible cuando el servidor activo es de tu red local.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (settings.deviceControlEnabled && !accessibilityOn) {
+                    Text(
+                        "Falta activar el servicio de accesibilidad de G-Mini en Ajustes de Android. " +
+                            "Hasta entonces el agente no puede controlar el telefono.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                    TextButton(onClick = { openAccessibilitySettings() }) {
+                        Text("Abrir Ajustes de accesibilidad")
+                    }
+                }
+            }
+
             SectionTitle("Tema")
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 ThemeChip("Sistema", settings.themeMode == ThemeMode.SYSTEM) { viewModel.setTheme(ThemeMode.SYSTEM) }
@@ -241,6 +288,34 @@ fun SettingsScreen(
                 }) { Text("Entiendo, encender") }
             },
             dismissButton = { TextButton(onClick = { showSmsConsent = false }) { Text("Cancelar") } },
+        )
+    }
+
+    if (showControlConsent) {
+        AlertDialog(
+            onDismissRequest = { showControlConsent = false },
+            title = { Text("Encender el control del telefono") },
+            text = {
+                Text(
+                    "Con el control encendido, tu agente podra tocar, deslizar, escribir y capturar la " +
+                        "pantalla de este telefono, como el computer use del escritorio.\n\n" +
+                        "- Ademas de este interruptor, tienes que activar el servicio de accesibilidad de " +
+                        "G-Mini en Ajustes de Android (se abre al continuar).\n" +
+                        "- Solo funciona cuando el servidor activo es de tu red local.\n" +
+                        "- Mientras este activo veras una notificacion permanente con un boton para " +
+                        "detenerlo de inmediato.\n\n" +
+                        "Es tu propio telefono y tu propio agente. Puedes apagarlo cuando quieras.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showControlConsent = false
+                    viewModel.setDeviceControl(true)
+                    AgentConnectionService.start(context)
+                    openAccessibilitySettings()
+                }) { Text("Entiendo, continuar") }
+            },
+            dismissButton = { TextButton(onClick = { showControlConsent = false }) { Text("Cancelar") } },
         )
     }
 }

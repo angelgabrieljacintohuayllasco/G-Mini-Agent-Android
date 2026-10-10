@@ -12,7 +12,9 @@ import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.LifecycleService
+import com.gmini.android.control.DeviceControl
 import com.gmini.android.core.net.NetworkScope
+import com.gmini.android.core.protocol.DeviceControlContract
 import com.gmini.android.core.protocol.NodeSurfaces
 import com.gmini.android.core.protocol.SmsContract
 import com.gmini.android.core.protocol.WsClientFrame
@@ -25,6 +27,7 @@ import com.gmini.android.sms.SmsGateway
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
@@ -38,10 +41,11 @@ import java.util.concurrent.ConcurrentHashMap
  * Servicio en primer plano que mantiene viva la conexion WebSocket con el
  * servidor activo. Convierte los frames `notify` en notificaciones de Android y
  * atiende `node.invoke` para las superficies seguras del nucleo (`display.text`,
- * `tts.speak`) y, si el usuario encendio la pasarela SMS, para `sms.send`.
+ * `tts.speak`) y, si el usuario encendio los modulos opcionales, para la pasarela
+ * SMS (`sms.send`) y el control del telefono (`device.*`).
  *
- * Todo lo que llega del agente se trata como dato: se muestra, se pronuncia o,
- * en el caso de un SMS, se ofrece al usuario para que confirme el envio.
+ * Cada modulo opcional se aplica solo si su interruptor esta encendido y el
+ * servidor activo es de red local. Todo lo que llega del agente es dato.
  */
 class AgentConnectionService : LifecycleService() {
 
@@ -68,6 +72,9 @@ class AgentConnectionService : LifecycleService() {
     private var smsReceiver: IncomingSmsReceiver? = null
     private var smsActiveShown = false
 
+    // --- Control del telefono ---------------------------------------------
+    private var controlActiveShown = false
+
     override fun onCreate() {
         super.onCreate()
         container = appContainer()
@@ -88,11 +95,11 @@ class AgentConnectionService : LifecycleService() {
         }
 
         lifecycleScope.launch {
-            container.settings.settings.collect { refreshSmsGateway() }
+            container.settings.settings.collect { refreshModules() }
         }
 
         lifecycleScope.launch {
-            container.repository.activeProfile.collect { refreshSmsGateway() }
+            container.repository.activeProfile.collect { refreshModules() }
         }
     }
 
@@ -109,6 +116,10 @@ class AgentConnectionService : LifecycleService() {
             }
             ACTION_SMS_DENY -> {
                 intent.getStringExtra(EXTRA_SMS_TOKEN)?.let { resolveSms(it, approved = false) }
+                return Service.START_STICKY
+            }
+            ACTION_CONTROL_STOP -> {
+                stopDeviceControl()
                 return Service.START_STICKY
             }
         }
@@ -136,15 +147,19 @@ class AgentConnectionService : LifecycleService() {
         }
         lifecycleScope.launch {
             val settings = container.settings.settings.first()
+            val local = activeHostIsLocal()
             val surfaces = buildList {
                 if (settings.surfaceDisplayText) add(NodeSurfaces.DISPLAY_TEXT)
                 if (settings.surfaceTtsSpeak) add(NodeSurfaces.TTS_SPEAK)
-                if (settings.smsGatewayEnabled && activeHostIsLocal() && SmsGateway.hasSendPermission(this@AgentConnectionService)) {
+                if (settings.smsGatewayEnabled && local && SmsGateway.hasSendPermission(this@AgentConnectionService)) {
                     add(SmsContract.SURFACE_SEND)
+                }
+                if (settings.deviceControlEnabled && local && DeviceControl.isConnected()) {
+                    addAll(DeviceControlContract.SURFACES)
                 }
             }
             container.connection.start(client, container.repository.deviceName(), surfaces)
-            refreshSmsGateway()
+            refreshModules()
         }
     }
 
@@ -183,6 +198,8 @@ class AgentConnectionService : LifecycleService() {
             }
 
             SmsContract.SURFACE_SEND -> handleSmsSend(frame, settings.smsGatewayEnabled)
+
+            in DeviceControlContract.SURFACES -> handleDeviceControl(frame, settings.deviceControlEnabled)
 
             else -> replyError(frame.requestId, "Superficie no soportada: ${frame.surface}")
         }
@@ -236,7 +253,6 @@ class AgentConnectionService : LifecycleService() {
             replyError(pending.requestId, reason)
             return
         }
-        // Reconfirma las condiciones en el momento del envio.
         if (!activeHostIsLocal()) {
             replyError(pending.requestId, "La pasarela SMS solo funciona con un servidor de red local.")
             return
@@ -263,23 +279,83 @@ class AgentConnectionService : LifecycleService() {
         )
     }
 
-    // --- Pasarela SMS: aviso continuo y recepcion de entrantes -------------
+    // --- device.*: solo en red local y con el servicio de accesibilidad on -
 
-    private suspend fun refreshSmsGateway() {
+    private fun handleDeviceControl(frame: WsServerFrame.NodeInvoke, controlEnabled: Boolean) {
+        if (!controlEnabled) {
+            replyError(frame.requestId, "El control del telefono esta desactivado.")
+            return
+        }
+        if (!activeHostIsLocal()) {
+            replyError(frame.requestId, "El control del telefono solo funciona con un servidor de red local.")
+            return
+        }
+        if (!DeviceControl.isConnected()) {
+            replyError(frame.requestId, "Activa el servicio de accesibilidad de G-Mini en Ajustes de Android.")
+            return
+        }
+        val action = DeviceControlContract.parse(frame.surface, frame.params).getOrElse {
+            replyError(frame.requestId, it.message ?: "Accion de control invalida.")
+            return
+        }
+        DeviceControl.perform(action) { result ->
+            result.fold(
+                onSuccess = { data -> replyOk(frame.requestId, data) },
+                onFailure = { replyError(frame.requestId, it.message ?: "La accion de control fallo.") },
+            )
+        }
+    }
+
+    private fun stopDeviceControl() {
+        lifecycleScope.launch { container.settings.setDeviceControlEnabled(false) }
+        DeviceControl.disableService()
+        AgentNotifications.cancel(this, AgentNotifications.CONTROL_ACTIVE_ID)
+        controlActiveShown = false
+    }
+
+    // --- Avisos continuos de los modulos y recepcion de SMS entrantes ------
+
+    private suspend fun refreshModules() {
         val settings = container.settings.settings.first()
-        val shouldBeActive = settings.smsGatewayEnabled && activeHostIsLocal()
-        if (shouldBeActive && !smsActiveShown) {
+        val local = activeHostIsLocal()
+
+        val smsActive = settings.smsGatewayEnabled && local
+        if (smsActive && !smsActiveShown) {
             if (NotificationManagerCompat.from(this).areNotificationsEnabled()) {
                 NotificationManagerCompat.from(this)
                     .notify(AgentNotifications.SMS_ACTIVE_ID, AgentNotifications.smsGatewayActiveNotification(this))
             }
             registerSmsReceiver()
             smsActiveShown = true
-        } else if (!shouldBeActive && smsActiveShown) {
+        } else if (!smsActive && smsActiveShown) {
             AgentNotifications.cancel(this, AgentNotifications.SMS_ACTIVE_ID)
             unregisterSmsReceiver()
             smsActiveShown = false
         }
+
+        val controlActive = settings.deviceControlEnabled && local && DeviceControl.isConnected()
+        if (controlActive && !controlActiveShown) {
+            if (NotificationManagerCompat.from(this).areNotificationsEnabled()) {
+                NotificationManagerCompat.from(this).notify(
+                    AgentNotifications.CONTROL_ACTIVE_ID,
+                    AgentNotifications.controlActiveNotification(this, controlStopIntent()),
+                )
+            }
+            controlActiveShown = true
+        } else if (!controlActive && controlActiveShown) {
+            AgentNotifications.cancel(this, AgentNotifications.CONTROL_ACTIVE_ID)
+            controlActiveShown = false
+        }
+    }
+
+    private fun controlStopIntent(): PendingIntent {
+        val intent = Intent(this, AgentConnectionService::class.java).setAction(ACTION_CONTROL_STOP)
+        return PendingIntent.getService(
+            this,
+            7001,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
     }
 
     private fun registerSmsReceiver() {
@@ -322,12 +398,12 @@ class AgentConnectionService : LifecycleService() {
         return NetworkScope.isLocalNetwork(host)
     }
 
-    private fun replyOk(requestId: String) {
+    private fun replyOk(requestId: String, data: JsonObject? = null) {
         container.connection.send(
             WsClientFrame.NodeResult(
                 requestId = requestId,
                 ok = true,
-                data = buildJsonObject { put("ok", true) },
+                data = data ?: buildJsonObject { put("ok", true) },
             ),
         )
     }
@@ -363,7 +439,9 @@ class AgentConnectionService : LifecycleService() {
         pendingSms.keys.toList().forEach { resolveSms(it, approved = false) }
         unregisterSmsReceiver()
         AgentNotifications.cancel(this, AgentNotifications.SMS_ACTIVE_ID)
+        AgentNotifications.cancel(this, AgentNotifications.CONTROL_ACTIVE_ID)
         smsActiveShown = false
+        controlActiveShown = false
         container.connection.stop()
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
         foregroundActive = false
@@ -383,6 +461,7 @@ class AgentConnectionService : LifecycleService() {
         const val ACTION_STOP = "com.gmini.android.action.STOP"
         const val ACTION_SMS_ALLOW = "com.gmini.android.action.SMS_ALLOW"
         const val ACTION_SMS_DENY = "com.gmini.android.action.SMS_DENY"
+        const val ACTION_CONTROL_STOP = "com.gmini.android.action.CONTROL_STOP"
         const val EXTRA_SMS_TOKEN = "com.gmini.android.extra.SMS_TOKEN"
 
         private const val CONFIRMATION_TIMEOUT_MS = 120_000L
