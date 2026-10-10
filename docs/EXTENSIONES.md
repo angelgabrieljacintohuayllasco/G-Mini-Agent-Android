@@ -1,18 +1,21 @@
-# Extensiones (puntos de extension, sin implementar)
+# Extensiones (puntos de extension)
 
-Este documento describe **como podrian** engancharse en el futuro modulos
-opcionales que acceden a partes sensibles del telefono. **Nada de esto esta
-implementado en esta app**, y el manifiesto **no pide** ningun permiso para
-ello. Es un contrato de diseño para que esos modulos, si algun dia se agregan,
-nazcan acotados y bajo consentimiento explicito. El trabajo de implementarlos se
-maneja por separado.
+Este documento describe **como se enganchan** modulos opcionales que acceden a
+partes sensibles del telefono, bajo consentimiento explicito. Los modulos que ya
+estan implementados se documentan en [MODULOS.md](MODULOS.md); aqui queda el
+contrato de diseño y las capacidades que todavia no estan.
 
-Las capacidades que quedan deliberadamente fuera del nucleo limpio son:
+Ya implementado (ver [MODULOS.md](MODULOS.md)):
 
-- Leer o enviar SMS/MMS.
+- **Pasarela SMS**: reenvio de SMS entrantes al agente y envio de SMS tras
+  confirmacion por mensaje, solo en red local.
+
+Capacidades que todavia quedan fuera del nucleo limpio:
+
 - Leer el registro de llamadas.
 - Leer notificaciones de **otras** apps (NotificationListenerService).
-- Manejar el dispositivo por el servicio de accesibilidad (AccessibilityService).
+- Manejar el dispositivo por el servicio de accesibilidad (AccessibilityService):
+  en preparacion, con el mismo modelo de consentimiento.
 
 ## Principios para cualquier modulo opcional
 
