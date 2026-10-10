@@ -36,6 +36,10 @@ class SettingsViewModel(
         viewModelScope.launch { settingsRepository.setBackgroundConnectionEnabled(enabled) }
     }
 
+    fun setSmsGateway(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setSmsGatewayEnabled(enabled) }
+    }
+
     fun selectProfile(id: String) {
         repository.setActiveProfile(id)
     }

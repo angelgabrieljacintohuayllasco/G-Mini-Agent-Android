@@ -20,6 +20,13 @@ data class AppSettings(
     val surfaceTtsSpeak: Boolean = true,
     val backgroundConnectionEnabled: Boolean = false,
     val remoteServersAcknowledged: Boolean = false,
+    /**
+     * Pasarela SMS. Modulo opcional, apagado por defecto: con el encendido el
+     * telefono reenvia los SMS entrantes al agente y expone la superficie
+     * `sms.send`, que solo envia tras la confirmacion del usuario y solo en red
+     * local. Ver docs/MODULOS.md.
+     */
+    val smsGatewayEnabled: Boolean = false,
 )
 
 class SettingsRepository(private val context: Context) {
@@ -32,6 +39,7 @@ class SettingsRepository(private val context: Context) {
             surfaceTtsSpeak = prefs[KEY_SURFACE_TTS_SPEAK] ?: true,
             backgroundConnectionEnabled = prefs[KEY_BACKGROUND] ?: false,
             remoteServersAcknowledged = prefs[KEY_REMOTE_ACK] ?: false,
+            smsGatewayEnabled = prefs[KEY_SMS_GATEWAY] ?: false,
         )
     }
 
@@ -55,11 +63,16 @@ class SettingsRepository(private val context: Context) {
         context.settingsDataStore.edit { it[KEY_REMOTE_ACK] = acknowledged }
     }
 
+    suspend fun setSmsGatewayEnabled(enabled: Boolean) {
+        context.settingsDataStore.edit { it[KEY_SMS_GATEWAY] = enabled }
+    }
+
     private companion object {
         val KEY_THEME = stringPreferencesKey("theme_mode")
         val KEY_SURFACE_DISPLAY_TEXT = booleanPreferencesKey("surface_display_text")
         val KEY_SURFACE_TTS_SPEAK = booleanPreferencesKey("surface_tts_speak")
         val KEY_BACKGROUND = booleanPreferencesKey("background_connection")
         val KEY_REMOTE_ACK = booleanPreferencesKey("remote_servers_ack")
+        val KEY_SMS_GATEWAY = booleanPreferencesKey("sms_gateway_enabled")
     }
 }

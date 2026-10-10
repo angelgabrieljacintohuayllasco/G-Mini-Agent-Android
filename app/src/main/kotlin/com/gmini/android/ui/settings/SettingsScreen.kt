@@ -39,6 +39,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import com.google.accompanist.permissions.rememberPermissionState
 import com.gmini.android.core.store.ServerProfile
 import com.gmini.android.data.AppSettings
@@ -61,8 +62,14 @@ fun SettingsScreen(
     val activeProfile by viewModel.activeProfile.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val notificationsPermission = rememberPermissionState(Manifest.permission.POST_NOTIFICATIONS)
+    val smsPermissions = rememberMultiplePermissionsState(
+        listOf(Manifest.permission.SEND_SMS, Manifest.permission.RECEIVE_SMS, Manifest.permission.READ_SMS),
+    )
 
     var unpairTarget by remember { mutableStateOf<ServerProfile?>(null) }
+    var showSmsConsent by remember { mutableStateOf(false) }
+
+    val activeIsLocal = activeProfile?.isRemote == false
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Ajustes") }) },
@@ -137,6 +144,41 @@ fun SettingsScreen(
                 )
             }
 
+            SectionTitle("Pasarela SMS (opcional)")
+            SectionCard {
+                SettingSwitch(
+                    title = "Pasarela SMS",
+                    description = "Apagada por defecto. Reenvia los SMS entrantes a tu agente y le permite " +
+                        "pedir el envio de un SMS, que solo se manda tras tu confirmacion y solo en red local.",
+                    checked = settings.smsGatewayEnabled,
+                    enabled = activeIsLocal || settings.smsGatewayEnabled,
+                    onCheckedChange = { enabled ->
+                        if (enabled) {
+                            showSmsConsent = true
+                        } else {
+                            viewModel.setSmsGateway(false)
+                        }
+                    },
+                )
+                if (!activeIsLocal) {
+                    Text(
+                        "Solo disponible cuando el servidor activo es de tu red local.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (settings.smsGatewayEnabled && !smsPermissions.allPermissionsGranted) {
+                    Text(
+                        "Falta conceder los permisos de SMS. Hasta entonces no podra enviar ni leer mensajes.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                    TextButton(onClick = { smsPermissions.launchMultiplePermissionRequest() }) {
+                        Text("Conceder permisos")
+                    }
+                }
+            }
+
             SectionTitle("Tema")
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 ThemeChip("Sistema", settings.themeMode == ThemeMode.SYSTEM) { viewModel.setTheme(ThemeMode.SYSTEM) }
@@ -170,6 +212,35 @@ fun SettingsScreen(
                 }) { Text("Desvincular") }
             },
             dismissButton = { TextButton(onClick = { unpairTarget = null }) { Text("Cancelar") } },
+        )
+    }
+
+    if (showSmsConsent) {
+        AlertDialog(
+            onDismissRequest = { showSmsConsent = false },
+            title = { Text("Encender la pasarela SMS") },
+            text = {
+                Text(
+                    "Con la pasarela encendida:\n\n" +
+                        "- Tu agente recibira el texto de los SMS que te lleguen, para que los use (por ejemplo, un codigo).\n" +
+                        "- El agente podra pedir que se envie un SMS, pero cada envio te pide confirmacion con el destinatario y el texto a la vista.\n" +
+                        "- Solo funciona cuando el servidor activo es de tu red local.\n" +
+                        "- Mientras este activa veras una notificacion permanente.\n\n" +
+                        "Se usa en tu propio telefono y con tu propio agente. Puedes apagarla cuando quieras.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showSmsConsent = false
+                    smsPermissions.launchMultiplePermissionRequest()
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !notificationsPermission.status.isGranted) {
+                        notificationsPermission.launchPermissionRequest()
+                    }
+                    viewModel.setSmsGateway(true)
+                    AgentConnectionService.start(context)
+                }) { Text("Entiendo, encender") }
+            },
+            dismissButton = { TextButton(onClick = { showSmsConsent = false }) { Text("Cancelar") } },
         )
     }
 }
@@ -218,6 +289,7 @@ private fun SettingSwitch(
     description: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
+    enabled: Boolean = true,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
@@ -231,7 +303,7 @@ private fun SettingSwitch(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
+        Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
     }
 }
 

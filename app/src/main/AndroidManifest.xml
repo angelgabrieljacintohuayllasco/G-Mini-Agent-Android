@@ -7,9 +7,8 @@
         notificaciones y la camara se declaran aqui pero se piden en tiempo de
         ejecucion, la primera vez que el usuario usa cada funcion.
 
-        No se declara ningun permiso para leer SMS, registros de llamadas,
-        notificaciones de otras apps ni para el servicio de accesibilidad: esas
-        capacidades estan fuera del alcance de esta app (ver docs/EXTENSIONES.md).
+        No se declara ningun permiso para leer el registro de llamadas ni para
+        leer notificaciones de otras apps.
     -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -21,6 +20,16 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.CAMERA" />
+
+    <!--
+        Pasarela SMS: modulo OPCIONAL, apagado por defecto. Estos permisos solo
+        se piden cuando el usuario enciende la pasarela en Ajustes; aun asi, los
+        SMS salientes se envian solo tras su confirmacion explicita por mensaje y
+        solo cuando el servidor activo es de la red local. Ver docs/MODULOS.md.
+    -->
+    <uses-permission android:name="android.permission.RECEIVE_SMS" />
+    <uses-permission android:name="android.permission.READ_SMS" />
+    <uses-permission android:name="android.permission.SEND_SMS" />
 
     <uses-feature
         android:name="android.hardware.camera.any"

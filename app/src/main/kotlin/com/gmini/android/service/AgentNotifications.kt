@@ -19,8 +19,10 @@ object AgentNotifications {
     const val CHANNEL_CONNECTION = "gmini_connection"
     const val CHANNEL_NOTIFY = "gmini_notify"
     const val CHANNEL_DISPLAY = "gmini_display"
+    const val CHANNEL_SMS = "gmini_sms"
 
     const val FOREGROUND_ID = 1001
+    const val SMS_ACTIVE_ID = 1002
 
     private val dynamicId = AtomicInteger(2000)
 
@@ -46,6 +48,13 @@ object AgentNotifications {
                 "Mensajes en pantalla",
                 NotificationManager.IMPORTANCE_DEFAULT,
             ).apply { description = "Textos que el agente pide mostrar (superficie display.text)." },
+        )
+        manager.createNotificationChannel(
+            NotificationChannel(
+                CHANNEL_SMS,
+                "Pasarela SMS",
+                NotificationManager.IMPORTANCE_HIGH,
+            ).apply { description = "Estado de la pasarela SMS y confirmaciones para enviar mensajes." },
         )
     }
 
@@ -95,6 +104,64 @@ object AgentNotifications {
             builder.setTimeoutAfter(seconds * 1000L)
         }
         post(context, builder.build())
+    }
+
+    /** Aviso continuo, no descartable, de que la pasarela SMS esta activa. */
+    fun smsGatewayActiveNotification(context: Context): android.app.Notification =
+        NotificationCompat.Builder(context, CHANNEL_SMS)
+            .setSmallIcon(R.drawable.ic_stat_gmini)
+            .setContentTitle("Pasarela SMS activa")
+            .setContentText("El agente puede leer los SMS entrantes y, con tu confirmacion, enviar mensajes.")
+            .setStyle(
+                NotificationCompat.BigTextStyle().bigText(
+                    "El agente puede leer los SMS entrantes y, con tu confirmacion, enviar mensajes. " +
+                        "Apagala en Ajustes > Pasarela SMS.",
+                ),
+            )
+            .setOngoing(true)
+            .setShowWhen(false)
+            .setContentIntent(openAppIntent(context))
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .build()
+
+    /**
+     * Confirmacion para enviar un SMS. Muestra destinatario y texto, y dos
+     * acciones (Permitir / Rechazar) que el servicio recibe. No se descarta sola:
+     * el mensaje no se envia hasta que el usuario pulse Permitir.
+     */
+    fun postSmsConfirmation(
+        context: Context,
+        notificationId: Int,
+        to: String,
+        text: String,
+        allow: PendingIntent,
+        deny: PendingIntent,
+    ) {
+        val builder = NotificationCompat.Builder(context, CHANNEL_SMS)
+            .setSmallIcon(R.drawable.ic_stat_gmini)
+            .setContentTitle("El agente quiere enviar un SMS a $to")
+            .setContentText(text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText("Para: $to\n\n$text"))
+            .setOngoing(true)
+            .setAutoCancel(false)
+            .setCategory(NotificationCompat.CATEGORY_RECOMMENDATION)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .addAction(0, "Rechazar", deny)
+            .addAction(0, "Permitir", allow)
+            .setDeleteIntent(deny)
+        post(context, builder.build(), notificationId)
+    }
+
+    fun nextSmsNotificationId(): Int = dynamicId.incrementAndGet()
+
+    fun cancel(context: Context, id: Int) {
+        NotificationManagerCompat.from(context).cancel(id)
+    }
+
+    private fun post(context: Context, notification: android.app.Notification, id: Int) {
+        if (NotificationManagerCompat.from(context).areNotificationsEnabled()) {
+            NotificationManagerCompat.from(context).notify(id, notification)
+        }
     }
 
     private fun post(context: Context, notification: android.app.Notification) {
