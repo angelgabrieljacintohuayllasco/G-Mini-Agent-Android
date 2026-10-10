@@ -55,8 +55,34 @@ se configura en el repo principal de G-Mini Agent.
 
 ## Control del telefono (android-use)
 
-En preparacion. Permitiria que el agente maneje el telefono (como el *computer
-use* del escritorio) a traves del servicio de accesibilidad de Android, que el
-usuario activa a mano, con notificacion permanente, solo en red local y con
-confirmacion por accion. Hasta que este, su contrato queda descrito en
-[EXTENSIONES.md](EXTENSIONES.md).
+Permite que tu agente maneje el telefono, como el *computer use* del escritorio,
+a traves del servicio de accesibilidad de Android.
+
+Superficies de nodo que expone con el modulo encendido:
+
+- `device.tap` (`{x, y}`): un toque. Coordenadas de 0 a 1000 sobre la pantalla.
+- `device.swipe` (`{x1, y1, x2, y2, duration_ms?}`): un deslizamiento.
+- `device.text` (`{text}`): escribe en el campo de texto que este enfocado.
+- `device.key` (`{key}`): `back`, `home`, `recents` o `notifications`.
+- `device.screenshot`: devuelve una captura de la pantalla (`{image_base64, mime}`,
+  JPEG reescalado), para que el agente vea donde actuar. Necesita Android 11+.
+
+Salvaguardas:
+
+- Apagado por defecto; se enciende en **Ajustes > Control del telefono** tras la
+  pantalla de consentimiento.
+- **Doble activacion.** Ademas del interruptor en la app, Android obliga a activar
+  el servicio de accesibilidad a mano en sus Ajustes; no se puede activar por
+  codigo. Si el servicio no esta activo, toda accion responde con error.
+- Solo opera con un servidor de **red local**.
+- **Notificacion permanente** mientras esta activo, con un boton **Detener** que
+  apaga el modulo y el servicio de accesibilidad al instante.
+- El servicio no observa la pantalla de forma pasiva: solo actua cuando el agente
+  lo pide una accion concreta.
+
+### Lado del servidor
+
+Para que el agente **use** el control, el nucleo de G-Mini Agent (escritorio o
+servidor) tiene que invocar estas superficies sobre el nodo, normalmente dentro
+de un bucle de *computer use* (captura, decide, actua). Eso se configura en el
+repo principal.

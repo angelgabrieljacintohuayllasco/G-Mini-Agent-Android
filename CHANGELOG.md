@@ -3,6 +3,28 @@
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el
 proyecto usa [versionado semantico](https://semver.org/lang/es/).
 
+## [0.2.0] - 2026-10-10
+
+### Anadido
+
+- **Pasarela SMS** (modulo opcional, apagado por defecto). Con el encendido, el
+  telefono reenvia los SMS entrantes al agente (evento de nodo `sms.received`) y
+  expone la superficie `sms.send`. Cada envio pide confirmacion con el
+  destinatario y el texto a la vista, y no sale hasta que el usuario pulsa
+  Permitir; si no responde en dos minutos, se cancela. Solo opera con un servidor
+  de red local y muestra una notificacion permanente mientras esta activa. Los
+  permisos de SMS se piden en tiempo de ejecucion tras una pantalla de
+  consentimiento. Detalle en [docs/MODULOS.md](docs/MODULOS.md).
+- **Control del telefono (android-use)** (modulo opcional, apagado por defecto).
+  Permite que el agente toque, deslice, escriba y capture la pantalla
+  (`device.tap`, `device.swipe`, `device.text`, `device.key`,
+  `device.screenshot`), como el computer use del escritorio. Ademas del
+  interruptor, el usuario activa a mano el servicio de accesibilidad en Ajustes
+  de Android; funciona solo en red local y muestra una notificacion permanente
+  con un boton para detenerlo. Detalle en [docs/MODULOS.md](docs/MODULOS.md).
+
+[0.2.0]: https://github.com/angelgabrieljacintohuayllasco/G-Mini-Agent-Android/releases/tag/v0.2.0
+
 ## [0.1.0] - 2026-10-08
 
 Primera version del cliente movil de G-Mini Agent: un control remoto y cliente

@@ -9,13 +9,14 @@ Ya implementado (ver [MODULOS.md](MODULOS.md)):
 
 - **Pasarela SMS**: reenvio de SMS entrantes al agente y envio de SMS tras
   confirmacion por mensaje, solo en red local.
+- **Control del telefono (android-use)**: el agente toca, desliza, escribe y
+  captura la pantalla por el servicio de accesibilidad que el usuario activa a
+  mano, solo en red local y con notificacion permanente con boton Detener.
 
 Capacidades que todavia quedan fuera del nucleo limpio:
 
 - Leer el registro de llamadas.
 - Leer notificaciones de **otras** apps (NotificationListenerService).
-- Manejar el dispositivo por el servicio de accesibilidad (AccessibilityService):
-  en preparacion, con el mismo modelo de consentimiento.
 
 ## Principios para cualquier modulo opcional
 
